@@ -9,9 +9,16 @@
 
 module MDSolver (main) where
 
+<<<<<<< HEAD
 import Data.List hiding (map)
 import qualified Data.Map as M
 import Control.Monad
+=======
+import Data.List.Split
+import Data.List
+import Dependent
+import Control.Applicative
+>>>>>>> e14392bae01be89255b74ca70193aaee404951aa
 
 main = do 
     puzzle <- readPuzzle parser3D "board.txt" pieces
@@ -29,6 +36,7 @@ type Puzzle a = (Board a, [Piece a])
 type Parser = [String]
 type Coordinate = [Int]
 
+<<<<<<< HEAD
 instance (Show a) => Show (Space a) where
     show (Atom a)   = show a
     show (Layer as) = concatMap show as
@@ -45,6 +53,11 @@ pretty :: (Show a) => [String] -> Space a -> String
 pretty []     (Layer as) = concatMap show as 
 pretty (p:ps) (Layer as) = concat $ intersperse p $ children as
     where children = map (pretty ps) . M.elems
+=======
+pretty :: (Show a) => Parser n -> Space (S n) a -> String
+pretty Nil       (Layer as) = concatMap show as 
+pretty (p :- ps) (Layer as) = concat $ (intersperse p) $ map (pretty ps) as
+>>>>>>> e14392bae01be89255b74ca70193aaee404951aa
 
 readPuzzle :: Parser -> FilePath -> [FilePath] -> IO (Maybe (Puzzle Char))
 readPuzzle p b ps = do
@@ -54,11 +67,19 @@ readPuzzle p b ps = do
         board  <- parse p bd
         pieces <- mapM (parse p) ps
         return (board, pieces)
+<<<<<<< HEAD
 
 parse :: Parser -> String -> Maybe (Space a)
 parse = undefined
 {-parse Nil       = Layer . (map Atom)-}
 {-parse (p :- ps) = Layer . (map (parse ps)) . (splitOn p)-}
+=======
+        
+
+parse :: Parser n -> String -> Maybe (Shape (S n))
+parse Nil       s = Just . Layer $ map Atom s
+parse (p :- ps) s = Just . Layer <$> map (parse ps) (splitOn p s)
+>>>>>>> e14392bae01be89255b74ca70193aaee404951aa
 
 printSpace :: Space Char -> IO ()
 printSpace = undefined
@@ -78,6 +99,7 @@ knead = undefined
 {-knead _ _ []     [x]    = Nothing-}
 {-knead f 0 (a:as) (b:bs) = (:) <$> f a b  <*> knead f 0     as bs-}
 {-knead f x (a:as) bs     = (:) <$> Just a <*> knead f (x-1) as bs-}
+<<<<<<< HEAD
 
 -- attempt to add a layer to the nth dimension of the Space
 layer :: Int -> Space a -> Space a -> Maybe (Space a)
@@ -111,3 +133,5 @@ get _        = Nothing
 
 layer' l@(Layer _) = Just l
 atom _             = Nothing
+=======
+>>>>>>> e14392bae01be89255b74ca70193aaee404951aa
