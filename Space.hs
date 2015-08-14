@@ -30,8 +30,7 @@ instance Functor Space where
 
 pretty :: (Show a) => [String] -> Space a -> String
 pretty []     (Layer as) = reEscape $ concatMap show as 
-pretty (p:ps) (Layer as) = concat $ intersperse p $ children as
-    where children = map (pretty ps) . M.elems
+pretty (p:ps) (Layer as) = intercalate p $ map (pretty ps) (M.elems as)
 
 reEscape :: String -> String
 reEscape ('\\':'n':ss) = '\n' : reEscape ss
@@ -62,11 +61,11 @@ getChunk = undefined
 modifyAtom :: (a -> Maybe a) -> Coordinate -> Space a -> Maybe (Space a)
 modifyAtom f (x:xs) (Layer m) = 
     M.lookup x m >>= modifyAtom f xs >>= \s -> Just $ Layer $ M.insert x s m
-modifyAtom f []     (Atom a)  = fmap Atom $ f a
+modifyAtom f []     (Atom a)  = Atom <$> f a
 modifyAtom _ _      _         = Nothing
 
 setAtom :: a -> Coordinate -> Space a -> Maybe (Space a)
-setAtom = modifyAtom . (const . Just)
+setAtom = modifyAtom . const . Just
 
 atom' a@(Atom _) = Just a
 atom' _          = Nothing

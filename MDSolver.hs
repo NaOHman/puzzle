@@ -21,12 +21,12 @@ type Puzzle a = (Board a, [Piece a])
 
 main = do 
     puzzle <- readPuzzle (parseSpace delims) "board.txt" pieces
-    either (putStrLn . show)
-          (\(_,pieces) -> mapM_ (putStrLn . (pretty delims)) pieces )
+    either print
+          (\(_,pieces) -> mapM_ (putStrLn . pretty delims) pieces )
           puzzle
     where
         delims = ["\n\n", "\n"]
-        pieces = [ "piece" ++ (show x) ++ ".txt" | x <- [0..5]]
+        pieces = [ "piece" ++ show x ++ ".txt" | x <- [0..5]]
 
           {-((mapM_ printSpace) . solve rules)-}
 
@@ -56,7 +56,7 @@ knead = undefined
 {-knead f x (a:as) bs     = (:) <$> Just a <*> knead f (x-1) as bs-}
 
 parseSpace :: [String] -> GenParser Char st (Space Char)
-parseSpace (x:xs) = sepBy (parseSpace xs) (string x) >>= return . fromList
+parseSpace (x:xs) = liftM fromList (sepBy (parseSpace xs) (string x))
 parseSpace []     = do
     cs <- many anyChar
     return $ fromList $ map Atom cs
