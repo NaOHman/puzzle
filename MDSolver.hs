@@ -15,9 +15,10 @@ import Space
 import Control.Monad
 import Text.ParserCombinators.Parsec
 
-type Board a = Space a
-type Piece a = Space a
-type Puzzle a = (Board a, [Piece a])
+type Shape  = Space (Maybe Char)
+type Board  = Shape
+type Piece  = Shape
+type Puzzle = (Board, [Piece])
 
 main = do 
     puzzle <- readPuzzle (parseSpace delims) "board.txt" pieces
@@ -42,10 +43,9 @@ readPuzzle p b ps = do
 solve :: (Char -> Char -> Maybe Char) -> Puzzle n -> [Board n]
 solve = undefined
 
-rules :: Char -> Char -> Maybe Char
-rules '_'  b  = Just b
-rules  a  '_' = Just a
-rules  _   _  = Nothing
+rules :: Maybe Char -> Maybe Char -> Maybe Char
+rules Nothing = id
+rules a       = const a
 
 knead :: (a -> a -> Maybe a) -> Space a -> Space a -> Maybe (Space a)
 knead = undefined
@@ -55,8 +55,10 @@ knead = undefined
 {-knead f 0 (a:as) (b:bs) = (:) <$> f a b  <*> knead f 0     as bs-}
 {-knead f x (a:as) bs     = (:) <$> Just a <*> knead f (x-1) as bs-}
 
-parseSpace :: [String] -> GenParser Char st (Space Char)
-parseSpace (x:xs) = liftM fromList (sepBy (parseSpace xs) (string x))
-parseSpace []     = do
+parseShape :: [String] -> GenParser Char st Shape
+parseShape (x:xs) = liftM fromList (sepBy (parseShape xs) (string x))
+parseShape []     = do
     cs <- many anyChar
-    return $ fromList $ map Atom cs
+    return $ fromList <$> mapM (Atom . p) cs
+    where p '-' = Atom Nothing
+          p  c  = Atom . Just c 

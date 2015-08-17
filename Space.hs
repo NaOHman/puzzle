@@ -5,38 +5,45 @@ module Space
     , fromList
     , get
     , getAtom
-    , modifyAtom
+    {-, modifyAtom-}
     , pretty
-    , setAtom
+    {-, setAtom-}
     ) where
 
-import Data.List hiding (map)
-import qualified Data.Map as M
+import Data.List hiding (map, insert)
+import qualified Data.IntMap as M
 import Control.Monad
+import Data.Maybe
+
+-- Type definitions
 
 type Coordinate = [Int]
 
 data Space a where
     Atom  :: a -> Space a
-    Layer :: M.Map Int (Space a) -> Space a
+    Layer :: M.IntMap (Space a) -> Space a
 
 instance (Show a) => Show (Space a) where
     show (Atom a)   = show a
     show (Layer as) = concatMap show as
 
 instance Functor Space where
-    fmap f (Atom a)   = Atom (f a)
+    fmap f (Atom a)  = Atom (f a)
     fmap f (Layer m) = Layer $ fmap (fmap f) m
 
-pretty :: (Show a) => [String] -> Space a -> String
-pretty []     (Layer as) = reEscape $ concatMap show as 
-pretty (p:ps) (Layer as) = intercalate p $ map (pretty ps) (M.elems as)
+instance Applicative Space where
+    pure  = return
+    (<*>) = ap
 
-reEscape :: String -> String
-reEscape ('\\':'n':ss) = '\n' : reEscape ss
-reEscape ('\'':ss)     = reEscape ss
-reEscape (s:ss)        = s : reEscape ss
-reEscape _             = ""
+instance Monad Space where
+    return = Atom
+    (Atom a)  >>= f = f a
+    (Layer m) >>= f = Layer $ fmap (>>= f) m
+
+normal :: Space a -> Bool
+normal (Layer m) = all atom' ss || (all layer' ss && all normal ss)
+    where ss = M.elems m
+normal (Atom  a) = True
 
 knead :: (a -> a -> Maybe a) -> Space a -> Space a -> Maybe (Space a)
 knead = undefined
@@ -58,25 +65,65 @@ getAtom c s = getChunk c c s >>= get
 getChunk :: Coordinate -> Coordinate -> Space a -> Maybe (Space a)
 getChunk = undefined
 
-modifyAtom :: (a -> Maybe a) -> Coordinate -> Space a -> Maybe (Space a)
-modifyAtom f (x:xs) (Layer m) = 
-    M.lookup x m >>= modifyAtom f xs >>= \s -> Just $ Layer $ M.insert x s m
-modifyAtom f []     (Atom a)  = Atom <$> f a
-modifyAtom _ _      _         = Nothing
+adjust :: (Space a -> Space a) -> Coordinate -> Space a -> Maybe (Space a)
+adjust f (c:cs) (Layer m) = Layer <$> do
+    s  <- M.lookup c m
+    s' <- adjust f cs s
+    return $ M.insert c s' m
+adjust f [] s = Just $ f s
+adjust _ _  _ = Nothing
 
-setAtom :: a -> Coordinate -> Space a -> Maybe (Space a)
-setAtom = modifyAtom . const . Just
+insert :: Coordinate -> a -> Space a -> Space a
+insert []     a _ = Atom a
+insert (c:cs) a (Layer m) = Layer $ M.insert c (insert cs a s) m
+    where s = fromMaybe emptyLayer (M.lookup c m)
+insert cs     a s  = insert cs a $ promote s
 
-atom' a@(Atom _) = Just a
-atom' _          = Nothing
+promote :: Space a -> Space a
+promote s = Layer $ M.singleton 0 s
 
-layer' l@(Layer _) = Just l
-layer' _             = Nothing
+withLayer :: (M.IntMap (Space a) -> M.IntMap (Space a)) -> Space a -> Maybe (Space a)
+withLayer f (Layer m) = Just . Layer $ f m
+withLayer _ _         = Nothing
+
+withNth :: (Space a -> Space a) -> M.Key -> Space a -> Maybe (Space a)
+withNth f k (Layer m) = f <$> M.lookup k m
+withNth f 0 a         = Just $ f a
+withNth _ _ _         = Nothing
+
+{-modifyAtom :: (a -> a) -> Coordinate -> Space a -> Maybe (Space a)-}
+{-modifyAtom f (x:xs) (Layer m) = M.adjust (modifyAtom f xs) x m-}
+{-modifyAtom f []     (Atom a)  = Atom  $ f a-}
+{-modifyAtom _ _      s         = s-}
+
+{-setAtom :: a -> Coordinate -> Space a -> Maybe (Space a)-}
+{-setAtom = modifyAtom . const . Just-}
+
+atom' a@(Atom _) = True
+atom' _          = False
+
+layer' l@(Layer _) = True
+layer' _           = False
 
 get :: Space a -> Maybe a
 get (Atom a) = Just a
 get _        = Nothing
 
-fromList :: [Space a] -> Space a
-fromList ss = Layer $ snd $ foldl p (0, M.empty) ss
-    where p (x, m) s = (x+1, M.insert x s m)
+emptyLayer = Layer M.empty
+
+fromList :: [a] -> Maybe (Space a)
+fromList []  = Nothing
+fromList [a] = Just $ Atom a
+fromList l   = Just $ foldl f (Layer M.empty) (zip [0..] l)
+    where f s (k, v) = insert [k] v s
+
+-- Printing
+pretty :: (Show a) => [String] -> Space a -> String
+pretty []     (Layer as) = reEscape $ concatMap show as 
+pretty (p:ps) (Layer as) = intercalate p $ map (pretty ps) (M.elems as)
+
+reEscape :: String -> String
+reEscape ('\\':'n':ss) = '\n' : reEscape ss
+reEscape ('\'':ss)     = reEscape ss
+reEscape (s:ss)        = s : reEscape ss
+reEscape _             = ""

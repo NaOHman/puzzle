@@ -15,7 +15,7 @@ infixl 6 :+
 
 type family (n :: Nat) :+ (m :: Nat) :: Nat
 type instance Z        :+ m = m
-type instance (S n)    :+ m = S (n :+ m)
+type instance S n      :+ m = S (n :+ m)
 
 data Vector n a where
     Nil  :: Vector Z a
@@ -23,7 +23,7 @@ data Vector n a where
 
 instance Foldable (Vector n) where
     foldMap f Nil    = mempty
-    foldMap f (a:-b) = (f a) `mappend` foldMap f b
+    foldMap f (a:-b) = f a `mappend` foldMap f b
 
 instance (Show a) => Show (Space n a) where
     show (Atom a)   = show a
