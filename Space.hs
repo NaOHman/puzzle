@@ -10,6 +10,7 @@ module Shape
     , lookup
     , pretty
     , promote
+    , rotate
     , singleton
     , subspace
     , transform
@@ -52,6 +53,9 @@ adjust f (c:cs) s        = withLayer s $ M.adjust (adjust f cs) c
 transform :: (a -> M.IntMap (Shape b) -> M.IntMap (Shape b)) -> [a] -> Shape b -> Shape b
 transform _ [] s = s
 transform f (c:cs) l = withLayer l $ f c . fmap (transform f cs)
+
+rotate :: [Bool] -> Space a -> Space a
+rotate = transform $ \b s -> if s then flip m else m
 
 unionWith :: (Shape a -> Shape a -> Shape a) -> Shape a -> Shape a -> Shape a
 unionWith f (Layer a) (Layer b) = Layer $ M.unionWith f a b
