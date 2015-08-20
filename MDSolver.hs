@@ -10,18 +10,17 @@
 module Main (main) where
 
 import Data.List hiding (map)
-import qualified Data.Map as M
+import qualified Data.IntMap as M
 import Space
 import Control.Monad
 import Text.ParserCombinators.Parsec
 
-type Shape  = Space (Maybe Char)
-type Board  = Shape
-type Piece  = Shape
-type Puzzle = (Board, [Piece])
+type Board a  = Space a
+type Piece a  = Space a
+type Puzzle a = (Board a, [Piece a])
 
 main = do 
-    puzzle <- readPuzzle (parseSpace delims) "board.txt" pieces
+    puzzle <- readPuzzle (parseShape delims) "board.txt" pieces
     either print
           (\(_,pieces) -> mapM_ (putStrLn . pretty delims) pieces )
           puzzle
@@ -43,22 +42,19 @@ readPuzzle p b ps = do
 solve :: (Char -> Char -> Maybe Char) -> Puzzle n -> [Board n]
 solve = undefined
 
-rules :: Maybe Char -> Maybe Char -> Maybe Char
-rules Nothing = id
-rules a       = const a
+rules :: Char -> Char -> Maybe Char
+rules c   '_' = Just c
+rules '_' c   = Just c
+rules _   _   = Nothing
 
-knead :: (a -> a -> Maybe a) -> Space a -> Space a -> Maybe (Space a)
-knead = undefined
-{-knead f (Atom a) (Atom b) = f a b-}
-{-knead _ _ zs     []     = Just zs-}
-{-knead _ _ []     [x]    = Nothing-}
-{-knead f 0 (a:as) (b:bs) = (:) <$> f a b  <*> knead f 0     as bs-}
-{-knead f x (a:as) bs     = (:) <$> Just a <*> knead f (x-1) as bs-}
 
-parseShape :: [String] -> GenParser Char st Shape
-parseShape (x:xs) = liftM fromList (sepBy (parseShape xs) (string x))
-parseShape []     = do
-    cs <- many anyChar
-    return $ fromList <$> mapM (Atom . p) cs
-    where p '-' = Atom Nothing
-          p  c  = Atom . Just c 
+-- Attempts to fit the first space into the second space
+-- if the second space does not have an entry corresponding to the
+-- second space return nothing.
+fit :: (a -> a -> Maybe a) -> Space a -> Space a -> Maybe (Space a)
+fit f (Atom a)  (Atom b)  = Atom <$> f a b
+fit f (Layer a) (Layer b) = Layer <$> M.fromList <$> mapM fit' (M.assocs a) 
+    where fit' (k,v) = M.lookup k b >>= fit f v >>= \s -> Just (k, s)
+fit _ _ _                 = Nothing
+
+
