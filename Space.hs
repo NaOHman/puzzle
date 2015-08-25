@@ -54,8 +54,12 @@ transform :: (a -> M.IntMap (Shape b) -> M.IntMap (Shape b)) -> [a] -> Shape b -
 transform _ [] s = s
 transform f (c:cs) l = withLayer l $ f c . fmap (transform f cs)
 
-rotate :: [Bool] -> Space a -> Space a
-rotate = transform $ \b s -> if s then flip m else m
+rotate :: [Bool] -> Shape a -> Shape a
+rotate = transform $ \b m -> if b then flipKeys m else m
+
+flipKeys :: M.IntMap a -> M.IntMap a
+flipKeys m = M.mapKeys (range -) m
+    where range = fst (M.findMax m) + fst (M.findMin m)
 
 unionWith :: (Shape a -> Shape a -> Shape a) -> Shape a -> Shape a -> Shape a
 unionWith f (Layer a) (Layer b) = Layer $ M.unionWith f a b
@@ -63,6 +67,9 @@ unionWith f a         b         = f a b
 
 union :: Shape a -> Shape a ->  Shape a
 union = unionWith const
+
+unionsWith = (Shape a -> Shape a -> Shape a) -> [Shape a] -> Shape a
+unionsWith f = foldl' (unionWith f) empty 
 
 insert :: Coordinate -> a -> Shape a -> Shape a 
 insert c a = union (singleton c a)
@@ -119,11 +126,26 @@ bounds (Layer l) = let b  = span $ M.keys l
                        bs = reduce widest $ M.foldr' ((:) . bounds) [] l
                    in b:bs
 -- Printing
-pretty :: (Show a) => String -> [String] -> Shape a -> String
-pretty e ds s = pretty' (bounds s) e ds s
-pretty' _ _ _ (Atom a)   = show a
-pretty' ((l,hi):bs) e (p:ps) (Layer as) = undefined
+pretty :: [String] -> Shape Char -> String
+pretty ds s = pretty' (map snd $ bounds s) ds s
+
+pretty' :: [Int] -> [String] -> Shape Char -> String
+pretty' _  _  (Atom a)   = a:""
+pretty' (l:ls) (d:ds) (Layer m) = snd $ M.foldlWithKey f (0,"") m
+    where f (len,s) k v = (k, prefix (k - len - 1) ++ pretty' ls ds v ++ s)
+          prefix 0 = " "
+          prefix n = p (n:ls) (d:ds)
+          p []      []    = " "
+          p (l:ls) (d:ds) = L.intercalate d $ replicate l $ p ls ds
+
+    {-= intercalate d $ zipWith mult ls ds-}
+          {-mult l:_ []    = replicate l ' '-}
+          {-mult l:ls d:ds = intercalate d $ replicate l $ mult ls ds-}
+          {-prefix -}
+          {-ls = snd b : -}
+          
     {-L.intercalate p $ map (pretty e ps) (M.elems as)-}
+
 
 reEscape :: String -> String
 reEscape ('\\':'n':ss) = '\n' : reEscape ss
