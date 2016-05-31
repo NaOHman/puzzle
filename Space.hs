@@ -1,4 +1,3 @@
-{-# LANGUAGE DataKinds, GADTs, TypeFamilies, ExistentialQuantification, TypeOperators #-}
 module Shape 
     ( Shape(..)
     , Coordinate
@@ -50,6 +49,11 @@ adjust f []     (Atom a) = Atom $ f a
 adjust _ []     s        = s
 adjust f (c:cs) s        = withLayer s $ M.adjust (adjust f cs) c
 
+traverse :: Applicative t => (Coordinate -> a -> t b) -> Shape a -> t (Shape b)
+traverse f = traverse' f []
+traverse' f cs (Atom a)  = Atom <$> f (reverse cs) a
+traverse' f cs (Layer l) = Layer <$> M.traverseWithKey (traverse' f . (:cs)) l
+ 
 transform :: (a -> M.IntMap (Shape b) -> M.IntMap (Shape b)) -> [a] -> Shape b -> Shape b
 transform _ [] s = s
 transform f (c:cs) l = withLayer l $ f c . fmap (transform f cs)
@@ -65,11 +69,13 @@ unionWith :: (Shape a -> Shape a -> Shape a) -> Shape a -> Shape a -> Shape a
 unionWith f (Layer a) (Layer b) = Layer $ M.unionWith f a b
 unionWith f a         b         = f a b
 
+{-unionAcc :: Traversable t-}
+
 union :: Shape a -> Shape a ->  Shape a
 union = unionWith const
 
-unionsWith = (Shape a -> Shape a -> Shape a) -> [Shape a] -> Shape a
-unionsWith f = foldl' (unionWith f) empty 
+{-unionsWith = (Shape a -> Shape a -> Shape a) -> [Shape a] -> Shape a-}
+{-unionsWith f = foldl' (unionWith f) empty -}
 
 insert :: Coordinate -> a -> Shape a -> Shape a 
 insert c a = union (singleton c a)
